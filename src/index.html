@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Aria</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: transparent; height: 100vh; overflow: hidden;
+  -webkit-user-select: none; user-select: none;
+}
+#app {
+  background: rgba(15,15,18,0.95);
+  border: 1px solid rgba(255,255,255,0.09); border-radius: 16px;
+  width: 100%; height: 100vh; display: flex; flex-direction: column;
+  overflow: hidden; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.55); color: #e0e2e8;
+}
+
+/* Titlebar */
+#titlebar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; -webkit-app-region: drag; flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+#tl-left { display: flex; align-items: center; gap: 7px; }
+#pulse {
+  width: 8px; height: 8px; border-radius: 50%; background: #4285F4;
+  box-shadow: 0 0 8px #4285F4cc; animation: pulse 2.8s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{box-shadow:0 0 6px #4285F4aa;} 50%{box-shadow:0 0 16px #4285F4ff;} }
+#app-name { font-size: 14px; font-weight: 600; color: #f0f2f6; }
+.badge {
+  font-size: 10px; padding: 2px 6px; border-radius: 5px;
+  border: 1px solid rgba(66,133,244,0.3); background: rgba(66,133,244,0.1); color: #4285F4;
+}
+.badge.hotkey { border-color: rgba(255,255,255,0.08); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.28); }
+#tl-right { display: flex; gap: 2px; -webkit-app-region: no-drag; }
+.tb-btn {
+  width: 28px; height: 28px; border-radius: 7px; border: none;
+  background: transparent; color: rgba(255,255,255,0.4); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s;
+}
+.tb-btn:hover { background: rgba(255,255,255,0.09); color: #fff; }
+#close-btn:hover { background: rgba(196,43,28,0.7); color: #fff; }
+
+/* Screen bar */
+#screen-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;
+}
+#scr-thumb {
+  width: 50px; height: 32px; border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(66,133,244,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0; overflow: hidden;
+}
+#scr-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+#scr-info { flex: 1; min-width: 0; }
+#scr-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.28); margin-bottom: 1px; }
+#scr-name  { font-size: 11.5px; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#cap-btn {
+  font-size: 11.5px; padding: 5px 11px; border-radius: 7px;
+  border: 1px solid rgba(66,133,244,0.4); background: rgba(66,133,244,0.12); color: #6ba3f5;
+  cursor: pointer; white-space: nowrap; font-weight: 500; transition: all 0.15s; font-family: inherit;
+}
+#cap-btn:hover  { background: rgba(66,133,244,0.28); color: #90beff; }
+#cap-btn:active { transform: scale(0.95); }
+#cap-btn:disabled { opacity: 0.35; cursor: default; }
+
+/* Messages */
+#messages {
+  flex: 1; overflow-y: auto; padding: 12px 12px 6px;
+  display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth;
+}
+#messages::-webkit-scrollbar { width: 3px; }
+#messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.msg-row { display: flex; gap: 8px; align-items: flex-start; animation: fadeUp 0.2s ease; }
+.msg-row.user { flex-direction: row-reverse; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
+.av {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+}
+.av.ai   { background: transparent; overflow: hidden; border: none; }
+.av.user { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.1); }
+.msg-wrap { display: flex; flex-direction: column; }
+.msg-wrap.user { align-items: flex-end; }
+.bubble {
+  max-width: 272px; padding: 8px 12px; border-radius: 12px;
+  font-size: 13px; line-height: 1.55;
+}
+.bubble.ai   { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.07); color: #d8dce6; border-top-left-radius: 3px; }
+.bubble.user { background: #4285F4; color: #fff; border-top-right-radius: 3px; }
+.scr-badge {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
+  color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 5px; margin-bottom: 4px;
+}
+.img-thumb { max-width: 230px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: block; margin-bottom: 4px; }
+.dots { display: flex; gap: 4px; padding: 4px 2px; }
+.dots span { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.3); animation: bounce 1.2s infinite; }
+.dots span:nth-child(2){animation-delay:.2s;} .dots span:nth-child(3){animation-delay:.4s;}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-5px);}}
+
+/* Input area */
+#input-area { padding: 7px 11px 11px; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
+#api-banner {
+  display: none; margin-bottom: 7px; padding: 6px 10px; border-radius: 8px;
+  background: rgba(255,170,0,0.09); border: 1px solid rgba(255,170,0,0.22);
+  font-size: 11.5px; color: #f0b850; cursor: pointer;
+}
+#api-banner:hover { background: rgba(255,170,0,0.15); }
+#chips { display: flex; gap: 5px; margin-bottom: 7px; overflow-x: auto; flex-wrap: nowrap; }
+#chips::-webkit-scrollbar { display: none; }
+.chip {
+  font-size: 11px; padding: 3px 10px; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.45); cursor: pointer; white-space: nowrap;
+  transition: all 0.15s; font-family: inherit;
+}
+.chip:hover { background: rgba(255,255,255,0.11); color: #fff; }
+
+/* Input row with voice btn */
+#input-row {
+  display: flex; align-items: flex-end; gap: 5px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 10px; padding: 7px 7px 7px 12px; transition: border-color 0.15s;
+}
+#input-row:focus-within { border-color: rgba(66,133,244,0.55); }
+#input {
+  flex: 1; border: none; background: transparent; font-size: 13px; color: #dde0e8;
+  outline: none; font-family: inherit; resize: none; line-height: 1.5;
+  max-height: 80px; min-height: 20px; -webkit-user-select: text; user-select: text;
+}
+#input::placeholder { color: rgba(255,255,255,0.22); }
+
+/* Voice button */
+#voice-btn {
+  width: 30px; height: 30px; border-radius: 8px; border: none;
+  background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.45);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0; transition: all 0.15s;
+}
+#voice-btn:hover { background: rgba(255,255,255,0.13); color: #fff; }
+#voice-btn.recording { background: rgba(234,67,53,0.25); color: #ea4335; animation: recPulse 1s infinite; }
+@keyframes recPulse { 0%,100%{box-shadow:0 0 0 0 rgba(234,67,53,0.4);} 50%{box-shadow:0 0 0 6px rgba(234,67,53,0);} }
+
+#send-btn {
+  width: 30px; height: 30px; border-radius: 8px; border: none;
+  background: #4285F4; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0; transition: all 0.15s; font-weight: bold;
+}
+#send-btn:hover  { background: #3367d6; }
+#send-btn:active { transform: scale(0.92); }
+#send-btn:disabled { background: rgba(255,255,255,0.08); cursor: default; }
+
+/* Voice status */
+#voice-status {
+  font-size: 11px; color: #ea4335; text-align: center;
+  padding: 3px 0 0; display: none;
+}
+#voice-status.show { display: block; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="titlebar">
+    <div id="tl-left">
+      <div id="pulse"></div>
+      <span id="app-name">Aria</span>
+      <span class="badge">✦ Gemini</span>
+      <span class="badge hotkey">Alt+Space</span>
+    </div>
+    <div id="tl-right">
+      <button class="tb-btn" title="Chat History" onclick="window.aria.openHistory()">🕓</button>
+      <button class="tb-btn" title="Settings"     onclick="window.aria.openSettings()">⚙</button>
+      <button class="tb-btn" id="close-btn" title="Hide" onclick="window.aria.hideWindow()">✕</button>
+    </div>
+  </div>
+
+  <div id="screen-bar">
+    <div id="scr-thumb">🖥</div>
+    <div id="scr-info">
+      <div id="scr-label">Screen context</div>
+      <div id="scr-name">No capture yet — press Capture or Alt+Q</div>
+    </div>
+    <button id="cap-btn" onclick="captureScreen()">📸 Capture</button>
+  </div>
+
+  <div id="messages"></div>
+
+  <div id="input-area">
+    <div id="api-banner" onclick="window.aria.openSettings()">
+      ⚠ No Gemini API key — click here to add one (free!)
+    </div>
+    <div id="chips">
+      <button class="chip" onclick="chip('Explain what you see on my screen')">Explain screen</button>
+      <button class="chip" onclick="chip('What should I do next?')">What next?</button>
+      <button class="chip" onclick="chip('Summarize what is on screen')">Summarize</button>
+      <button class="chip" onclick="chip('Find any errors or issues')">Find issues</button>
+      <button class="chip" onclick="chip('How do I use this?')">How to use</button>
+    </div>
+    <div id="input-row">
+      <textarea id="input" rows="1" placeholder="Ask anything… or press 🎤 to speak"
+        onkeydown="onKey(event)" oninput="resizeInput(this)"></textarea>
+      <button id="voice-btn" title="Hold to speak" onmousedown="startVoice()" onmouseup="stopVoice()">🎤</button>
+      <button id="send-btn" onclick="send()">↑</button>
+    </div>
+    <div id="voice-status">🎙 Listening… release to send</div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────
+let apiKey      = '';
+let capture     = null;
+let history     = [];
+let isRecording = false;
+
+// ── Init ───────────────────────────────────────────────────
+(async () => {
+  const cfg = await window.aria.getConfig();
+  apiKey = cfg.apiKey || '';
+  checkKey();
+
+  greet();
+  setupVoice();
+})();
+
+// Refresh config on focus (user may have changed settings)
+window.addEventListener('focus', async () => {
+  const cfg = await window.aria.getConfig();
+  apiKey = cfg.apiKey || '';
+  checkKey();
+});
+
+// Alt+Q triggered from main process → auto screenshot + ask
+window.aria.onTriggerScreenshotAsk(() => {
+  captureScreen(true);
+});
+
+function greet() {
+  addMsg('ai', [
+    "Hi, I'm <strong>Aria</strong> — your AI screen assistant ✦",
+    "",
+    "• Press <strong>📸 Capture</strong> to grab your screen",
+    "• Press <strong>🎤</strong> (hold) to speak your question",
+    "• Press <strong>Alt+Q</strong> anywhere to capture + ask instantly",
+    "• Press <strong>🕓</strong> to browse past conversations",
+    "",
+    "<em>Alt+Space to show or hide me anytime.</em>"
+  ].join('\n'));
+}
+
+function checkKey() {
+  document.getElementById('api-banner').style.display = apiKey ? 'none' : 'block';
+}
+
+// ── Voice Input (MediaRecorder → Gemini transcription) ────
+let mediaRecorder = null;
+let audioChunks   = [];
+let micStream     = null;
+
+async function setupVoice() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+    console.log('Mic permission granted');
+  } catch (e) {
+    console.warn('Mic permission denied:', e.message);
+    document.getElementById('voice-btn').style.opacity = '0.3';
+    document.getElementById('voice-btn').title = 'Microphone access denied';
+  }
+}
+
+async function startVoice() {
+  if (isRecording) return;
+  if (!apiKey) { window.aria.openSettings(); return; }
+  try {
+    micStream     = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks   = [];
+    mediaRecorder = new MediaRecorder(micStream, { mimeType: 'audio/webm' });
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.start();
+    isRecording = true;
+    document.getElementById('voice-btn').classList.add('recording');
+    document.getElementById('voice-status').classList.add('show');
+  } catch (e) {
+    addMsg('ai', '⚠ Microphone blocked. Go to Windows Settings → Privacy → Microphone and allow access, then restart the app.');
+  }
+}
+
+async function stopVoice() {
+  if (!isRecording || !mediaRecorder) return;
+  isRecording = false;
+  document.getElementById('voice-btn').classList.remove('recording');
+
+  return new Promise((resolve) => {
+    mediaRecorder.onstop = async () => {
+      micStream.getTracks().forEach(t => t.stop());
+
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      if (audioBlob.size < 500) {
+        document.getElementById('voice-status').classList.remove('show');
+        resolve(); return;
+      }
+
+      document.getElementById('voice-status').textContent = '✦ Transcribing…';
+
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Audio = reader.result.split(',')[1];
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                role: 'user',
+                parts: [
+                  { inlineData: { mimeType: 'audio/webm', data: base64Audio } },
+                  { text: 'Transcribe exactly what is said in this audio. Return only the spoken words, nothing else.' }
+                ]
+              }]
+            })
+          });
+          const data = await res.json();
+          document.getElementById('voice-status').classList.remove('show');
+          document.getElementById('voice-status').textContent = '🎙 Listening… release to send';
+          if (data.candidates?.[0]) {
+            const transcript = data.candidates[0].content.parts[0].text.trim();
+            const inputEl    = document.getElementById('input');
+            inputEl.value    = transcript;
+            resizeInput(inputEl);
+            setTimeout(() => send(), 150);
+          }
+        } catch (e) {
+          document.getElementById('voice-status').classList.remove('show');
+          document.getElementById('voice-status').textContent = '🎙 Listening… release to send';
+          addMsg('ai', '⚠ Voice transcription failed. Check your API key and connection.');
+        }
+        resolve();
+      };
+      reader.readAsDataURL(audioBlob);
+    };
+    mediaRecorder.stop();
+  });
+}
+
+// ── Screenshot ─────────────────────────────────────────────
+async function captureScreen(autoAsk = false) {
+  const btn = document.getElementById('cap-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Capturing…';
+  const data = await window.aria.takeScreenshot();
+  btn.disabled = false;
+  btn.textContent = '📸 Capture';
+  if (data) {
+    capture = data;
+    document.getElementById('scr-thumb').innerHTML = `<img src="${data}" alt="screen" />`;
+    document.getElementById('scr-name').textContent = 'Screen ready — ask me anything!';
+    if (autoAsk) {
+      document.getElementById('input').value = 'Explain what you see on my screen.';
+      send();
+    }
+  } else {
+    document.getElementById('scr-name').textContent = '❌ Capture failed';
+    addMsg('ai', '⚠ Screenshot failed. Please try:\n\n1. Go to **Windows Settings → Privacy & Security → Screenshots** and make sure screen capture is allowed\n2. If that doesn\'t work, install **Visual C++ Redistributable** from microsoft.com\n3. Try running Aria as Administrator (right-click → Run as administrator)');
+  }
+}
+
+// ── Send ───────────────────────────────────────────────────
+async function send() {
+  if (!apiKey) { window.aria.openSettings(); return; }
+  const inputEl = document.getElementById('input');
+  const text    = inputEl.value.trim();
+  if (!text && !capture) return;
+
+  document.getElementById('send-btn').disabled = true;
+  const userText = text || 'Please analyze my screen.';
+
+  addMsg('user', userText, capture);
+
+  const parts = [];
+  if (capture) {
+    parts.push({ inlineData: { mimeType: 'image/png', data: capture.split(',')[1] } });
+  }
+  parts.push({ text: userText });
+
+  history.push({ role: 'user', parts });
+  inputEl.value = '';
+  resizeInput(inputEl);
+  clearCapture();
+  showTyping();
+
+  try {
+    const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+    const body = {
+      system_instruction: {
+        parts: [{ text: "You are Aria, a professional AI assistant floating over the user's Windows screen. Help users understand their screen, navigate apps, debug errors, and be more productive. When given a screenshot, analyze it clearly and concisely. Be direct, brief, and actionable. Use plain text." }]
+      },
+      contents: history,
+      generationConfig: { maxOutputTokens: 1024, temperature: 0.7 }
+    };
+
+    const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    hideTyping();
+
+    if (data.error) {
+      addMsg('ai', `⚠ Gemini error: ${data.error.message}`);
+      history.pop();
+    } else {
+      const reply = data.candidates[0].content.parts[0].text;
+      history.push({ role: 'model', parts: [{ text: reply }] });
+      addMsg('ai', reply);
+
+      // Save to persistent history
+      saveToHistory(userText, reply);
+    }
+  } catch (e) {
+    hideTyping();
+    history.pop();
+    addMsg('ai', '⚠ Network error. Check your connection.');
+  }
+
+  document.getElementById('send-btn').disabled = false;
+  inputEl.focus();
+}
+
+// ── Persistent history ─────────────────────────────────────
+async function saveToHistory(userMsg, aiReply) {
+  try {
+    const existing = await window.aria.loadHistory() || [];
+    existing.unshift({
+      id:        Date.now(),
+      timestamp: new Date().toISOString(),
+      user:      userMsg,
+      ai:        aiReply
+    });
+    // Keep last 100 conversations
+    await window.aria.saveHistory(existing.slice(0, 100));
+  } catch(e) {}
+}
+
+// ── UI helpers ─────────────────────────────────────────────
+function addMsg(role, text, imgData) {
+  const msgs = document.getElementById('messages');
+  const row  = document.createElement('div');
+  row.className = 'msg-row ' + role;
+  const av = document.createElement('div');
+  av.className = 'av ' + role;
+  av.textContent = role === 'ai' ? 'AI' : 'You';
+  const mw = document.createElement('div');
+  mw.className = 'msg-wrap ' + role;
+  if (imgData) {
+    const badge = document.createElement('div');
+    badge.className = 'scr-badge';
+    badge.textContent = '🖥 Screen capture attached';
+    mw.appendChild(badge);
+    const img = document.createElement('img');
+    img.src = imgData; img.className = 'img-thumb'; img.alt = 'Screen';
+    mw.appendChild(img);
+  }
+  const bub = document.createElement('div');
+  bub.className = 'bubble ' + role;
+  bub.innerHTML = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,     '<em>$1</em>')
+    .replace(/`(.*?)`/g,       '<code style="background:rgba(255,255,255,0.1);padding:1px 4px;border-radius:3px">$1</code>')
+    .replace(/\n/g,            '<br>');
+  mw.appendChild(bub);
+  row.appendChild(av); row.appendChild(mw);
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+  const msgs = document.getElementById('messages');
+  const row  = document.createElement('div');
+  row.className = 'msg-row ai'; row.id = 'typing';
+  const av = document.createElement('div');
+  av.className = 'av ai'; av.innerHTML = '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAXHElEQVR4nL2b2bNlV33fP7+19t5nurcnSd0tNcjEKCCwBVLFEAY5sXBEPOEEYogQEfghT/kD8p5U5T1V/gPykCpnqlhAUSHGLuMAmpCQjBoNqCQkhCSEpG71cPucs9fw++VhrX2G27elxgbvqnX3vuecfc76fn/zb60tN9xwg/H3eIjIZdf7zyAgGzfZ6g+2dW2Yrae/eX21R/Nz3/G3PAo2Wf0jIggDaCnvD68Pr7GCWoBXwIZVJgSkkmCGiGwRdDXH3wsB21J3iLAGKoJzDicOcVciYJC2YmaoGqq5gLbyGaufEQGzzTvf+vjlElClXC63wTknOOdxziHOFRKcw4kgzg0qA1TwWgjIqjhVVB1ZFc0ZwUAMVDdIuLop/tII2JK6cwiVAFck7p3H+eHs8d4hzhdixIG4lQYUqSuqilcl50zOCcmZLILmDKrgHKYGptUc3p6FXwoBm05ta1Tg3ju8b/De45t69oWITa0QETBQG0BnUs64lHDZk2IsJAAZQBUnhiJrH/E2pvALJkBWmrsfuHMFdFNBNxujkLD+38yIqQBWLUCatqMbeWIMxBgLeBFSjFDcImrlSuCqTeEXRsDljq6Q4ZyvkvZ439A2DU3b0rQtbdvSNOXcth2qSh8Cs50d3nniBEePXUPbdswXc15+6SVe/elP8U2La1rE9eCkmgh4E8wbkhUMTK5OC34hBGzGb+dkFc58lfog8baCbruOtu1o25bRaIRvGpbLnhMnT3LHJz7Bhz/yEY6fvIHRaIQJLBOcPXee7z74APf+tz/ljdd/xmg8KbK2EvoMw6HFWUpGqD7gbaxA/q6J0IH27hzO+ZW6r4GP6LqO0WhE23WMx5Pi2HzDnZ+8k09/5tNce+wIvYJ3kBLEBAhciOAm8Pzzr/In/+k/8sqLzwOwXMwJYUnse1IMpBTRlDBV1HSVO/wSCDjY3p1z1atXde86urajG40Y1dGNx4zHE2KI3HDqFH/8x1/kH936AS5lWC4T01HDo4/9gPvvv49F3/Prt9zGhz92O2f7RLfT8uwPX+RP/sO/Zzm/RAg9YbEg9Ati7IkxkmPENNXwqW+ZHP2tTOCyECfgKJ7bN746s2LX3aijG40Zj8eMRmPGkwmj0YgYMx+7/Xa+9KV7OHbkEG8uFFVjNmn42tf+nHvv/bPq1IRHH3uMC3sLPv67n+T1c5FTN93IRz75L/jL//1fabsxKSVcTriccS5jzqEq1TWWbPFKZvBzE3Alex+cXdNW8F3HqBsxGo8ZjSeMJxOm0xlN2+K85zP/6lP84ad+j2RwfqFkg9nU851vP8xXvnIv0+kMBQxH0425775vc/M//k0Yjbm4MN7/0d/mwb/6Oou9i/i2w8WIeI/kmkRJ8Q9vBf7nJuDt7L1pmuLgurXUx+Mp4+mEndkOiOPosWP8my98nt+49RYuBiMrqAhNA6+8dIYvf+XP6EZjshpJtUjRNVyaz3n19Te49lfeyXyu7Bw/zol3vZcfnX4E34xwTcDFgIhHnAfJiChmwqALfycCDgK/svemoW1KaBt11cYnE8bjKdPZlOlsFzPjpn/4Hr50z92cuv4455YK4lAgqdF64etf/z9cvHCBph0RUyQPU3egJixSJij0WXGd45obb+JHTzyG8w3i2zoikgQRV6LESgMODgdXRcDB4Etsb3yDb1u6rqOrKj8eT5hMZ8x2dhhPpog4Pvqxj/K5P/o0o8mIC8uStqpCUGXUOn749PM8/vhjtG1HHwIxZ9Qc5gFTXDtCxjMWGYIKKOyevBHXjABFfIM4j4iHWkuICGKyj4ifk4Bt8KVYcX4d34e4vlL5yZTJdMbOzi7daMxoMuEPfv/3uPO3/wkhwbyCzwrZIJuQE3z7W9+kDwEQQoykbCgK5jCnTHemyHiHRYTeBI0wufYG2skOYXmpSr+pTtmXJCkPYepA4b89AVvga26+knzTlPS0G1XvPmY8nTGZTtndPYxrGq49foK7PvdHfOD972Gvr3boXAFOkX7XOJ774Y95+odP4ZxnsVgSYyRmQ51HRNEMhyYztB0TEgQTYgB/6Dq63aP0ywXiGnAexJdMlFKA2dswcEUC9ku+ZHZ+I6ursb3a+2QyY7qzw87uLojnvTe/jy/c9VlOHj/GhV6rTZZ8PRtFA1TQBA/c/y2WiyWqmRADISSSVScuhprSzg4TnbAMRjKhz4ZNpoyOnuDC66+Cb0Ga6gBle7xFInQFAvZ1bqrDGwqWovIjxuPJSuVnu7tMpzNc03H7xz/OZ/7lH9CNWy5W8FrBaynbCVnxjeOFZ1/mqaefQERY9j19H0ohZA68wykkM9rZYYLAIhuZQkBqhNG1p7BnThcCqgaU83ZPYd1j2ybjQAKG+9xmGbuy+aL2JbxNmU5n7Bw6TDeeMJ7t8Ief+n3u+KcfIyRY9LYFPteRDKIKPsNDD32b+XxOipHQl0ovJEXFgzQ0BqpCs3OUhcIyQxIIGbKD0TWnwDVFym4/+GoGb6EFBxAwqL6D2sQY6vWmbWlHo63EZvfwEVzTcd2Jk9x91+e45eZ3sxeqvYuQq/PNrFW/z4b3wosvvMqTT54GYLlcEkKoDhDUFfUXAxOP2z3CIsFSy3dFBU3QHr0eaSdFraQpGlAbKmsTqF7gAFdwGQHr/J7So9sEX1V/NJkwnhXJ4xre9/5f454vfI7j1x3jwlJLS4t1r24AXyQPQWECPPzd+7i0d5HYB0LfE0IgxWr/5nC+EOaaFpkdYZ7LvQokE1IAt3stbnIY7RdFE8QBHhi0YKPTfLV5gMg6jvpVPT/k9iXOz2aHMPHcfvvt3P35z9K2DXvLDWdXf04H8FpGr4ZzwssvvsaTT3wfM1guFyX2x0jM1f5rJ1hUcO0IG++yjJCzoAIpCzGBjXfxu9dib/4MpPiB0lPcJODKeYA7SPxS2/IitVFZK7u26xiNxkxmuyjCb93xCb70xc+Da1gEW4HPFfiW3VfJ97V/9cjD93PxwnlCH+j7nhiGTk9GsxVnSTEh102x0YwQiwbFPJyV7ITm8AnMHLgGo6nSd2stWPnCTY04QANki4TNVNfjqwmMJlOywYc+9GE+f/dn6aORrXxeKXZmtiZgUPtosEwGIrz60hme+MH3UTWWywUhhNLqSqUFps4jBmIlW3TjXbSZEFJpeWslNGZIDtyR6zE8JjUKyH4TGMZVmMCKBBla1w7vmmIC3QjEceLkSe66+67VJGRoTUHtzqzBD5IPGRYZJg4efeQBLpw/SwyBfrkk9LWO31B/Z6USVAU3OUR2Do2GVaJzLt+ZMsihk+BHWE7gBiI2NGCf1N+SgBUJCIgrZlAbHE3boQZ3/LM7OXbNLhf3FOerFW0sUKzs3orkg8Iilcm/9vKbPPGDR4v0F3NC6IkxkGNtggoU9ILDYSb46WESkJKB29AAFWIGm14L3Q7WL4oJbEYCXMVyoAIcQMD+wseVFRvnPQYcOnyEX/vArVzqjbxaiirH4PgGu49WpNRnmCdjKsJj33uQc2+eIfVr6aeYiDmSM5hziApmDsODOWR6pKh7rua1MoGSEuf2MDI+il14o4RCBjMYHGDtDRzAwpUzwc0sqmpCVuXIsWNMDx2hj7JyeEPjZaX6bKh+KuAVxxuvnOfJ049gWTekH0kpkrOiJqvS1RAUh5MGJkfoc1H7gYBc+4UxGEk8zI5j+iwmbTEBXNWEfSawLyG4un6Arc+GELWEolWZLWvbH6QfKgHLDJeiMRPh8Ucf5M2zr5NDIPRLYgikavumpaNvg+pXEOY6mBwiRNAMlmtekSBGiNEIWdDpyQIavzGElQlcIR+4MgG2PpkZWUsD4/z585y7eIlDR3fJybYc4KbtB4V+kL4Jb/7sIj94/CE0KX31/AW8krUueNb01fAYHjVP48dYt1sIiIK5kvSlFQE1LZ6cwKTDCDUiDE5wIIADC6PtPGAFvCxBm4GpoXVtDuDNM2d47tlnUVcc2zKzGosMiwTzBPNYzheD0qjwNw9/h3NnXiemRN/XjC+XxU7T4vGL4xqcWFt8QDsjtzNCX8wpROhjuY4RQhRiD7G7DnNTzAp5l/mBA6AeTMCKA1ttQFBdr8tlVe775l9ycWkEg3k0FhnmFfylDJcSXIrwZp9pveelp17g9KPfwXD0y564Al9aXYpHxWPSFuDSgevAGuh2yW5SkqAk5RwghEJEjEJYQnBH0OYwpgK0gMdwhditXGA7JF5GwKaCmA3SN3LOxBgR5/nRM0/xF1/9Gto6eoRLQbkUlL1g7PXKxWBcyNA0nrPPvsI3//x/slz2hJBKqatWegHmSthyTQHsOvAduBG4EUYLo8NEPCEYIRbgq3O9jr0RtCN315aVokEDbNMMDj42fMA2M+vEppCQ1UhZiSEy7iZ895vfYBEyt33iTsaHZmRqaHIlNufzPT85fZrvP/jXXNq7gKoQkpKzkM2heMy1pX9nIHjwI/BjxI/BjUE6GJcQqHkjvdbiBFOgqH8wQhRce5xWBaPFbCMjrDnNWrrr3sBVRYFV6MlaSEgZN2o4/dB9/OT5Fzh1869z6Pj1SNvRL3ouvf4Gr7/4Amff+BmqGTVPyEY2R5YGla40O9VDo4gVWZgbIX4CflLWwdwYGwgIxUlmLeFwRUCA1EPoQfxJGlrMqiM0X02gdogPSInXBEj9M5xXN5XzMIbCxiVlNB1z8eJFnn7kYVzTIb4FE7LWfoAfk9OSqI5Mi4qiDmgEsQbIiGqNyx5xI/ATpNkBP8UYY4ffSQglAiisCai+IC0h90JaAhxnyhhsUfxHBV8KlINT4mZLJUTqzhwBJ6W/tuqyeEwaVBoynownmtC6jqabIL6r1ZggCjklUo4kOrIz1AvWuCJ1a8AiIhnLuU7OAcUPmDmISvOuW0lHT5EX1VlW8nOCFCH3lYAl5TPpKMoh0HM1i9zwAwc4wDUBQgEulYRVa9lXB9WWnpvvoBkhzRh1bSlG+ozTiPcOfNUYA82CZk8eoonULTC+wRiBJEQV1VLhGW1xft1hZHo9XH8L6dTNpFjifqZKXov0cyUgL0GXgs0hhymRY7T2E1iFw/3qv20GzX7pl51bvu7XKSsurh0h7Rg3moLviMnodmYcvf5Gjhw/xfTQMdrxDHxTQhqObEIyVxoXueTtKTtClnKdyjlmT8qOmB3ZHMlPiN4RpSQ7WjtAK9XPawJ0WcccWCg6d0S9jtYEs2ZD+m+lAVuN0wreO8Q3uKbFNR2uGeFHM9Qck91reNdH7uCG99/K9Nh10FI6NNU7p7pfSetkY83ZQ6whaziHjRGLSierKh0UNVfADuCH70ygEbQH66u5z4E56B6EcJKJudJUNFfMCbcNflUPVBOQVfGzoQHel9WWtsOPpqjCifd+kA9+9ovMjl9DiCXp0VBzBZNV0zPVyi0OI1YiavzeAt4bKUFSh754Gvfi9xC/y/ym3yG2MzRV8NX2LYGGCn4g4BLYnsACYj6OWQe2KBHANmuAoXC5zAesS+C1+pfFRt+OUROu+ZWbue2ef4cbj9jby6v1N6tt51WMBrLUwbo4yrUnOEizODMjqSMlsKe/gbzwIOZ3kHwe98ozxOtvw4KRVArwDBbBAtAX9bc5cKmQgULKxzAmYOfWzvWyCHBANShDA2TD+0vTIk2Ha8e8+5//a2wyYrnISONXRG4VQVQ13miDRd3o4+W1JqTeCElIiwCn70V++jjqd1FziAnsnSfOC2DVInlLQCgE2LJKfwnEYRKQ84wsM7xZ9QGswdsBPmCrXziYQl0DFNdiauzc8A+YvvMmlnMr5Ggldv27aynbummZNgCX2r2OpRKyI50/D4//dzjzHOqmaFrWAqxBQyLNCzirZTCD9JeVgFh+3FZqB6YtWUaVANbqfkA3qGrAflZK82MIW2YwPnY91jhy1BIpHJiy6glsqvjQuYmb5WqsKWtfwasjvfYy8vifYnuvojRo2CvATRBLaIjkOUioANNa9S2smTct762ulRK+La9L3yuArwSsD9m6WjtGfEeqXl2GL5RtAtLg/IZOTVpXbZvg++TQnzyNPPE/sOW50gKPi2Lf1tSd3w26jNhelXoqZwYyrILN62GrXjz1Jl2PVbPubbrCFVfdUFIXJoC4mJeGRKqbn2v2WvcprBxbHAjYCHMhQFwasYcQHfbcQ7hnvlxAp4CGJZozlgW1ps7RY/0S3QMXqqqnjelvYFoBr/YoFnF2sUp/882tOndNQGlEyfabWrM3zZgXlmdfY3Ep45pi/7aRXq+WugfVjxsE9BB7JfSuFCvPfAP3/DfIKaJxjoUFOYWSDqsryQsG1uLsDNSYP/ic1dxtQws2vbAKjZ3B8wY22IZV27Dhpm2n0GzihvW2dNOMpoTrhMUbL3HhlZeYvuNGNBn49fLX0KOPebNPt1b5mBxxr8c99WXklQfImtGwh4Z5cXopQi7b37G2dKJkSqMv4PU8yQ4hzlb2Zpvz3ZyEls+M5GmcnUMtrb3kpspsHRvlsGFItRlTxXLGckRTBN3jzPf+An/i36JBMWe1a1v7c7VHl1eeXknBEZIjv/EqzVP/C849Uzq/4QIa5lhaYClgORXS1QGpmJ80OPkpU32AC/Y7oLk2Sfdp8UCAFfBiiZn/a8wS0FMcR/WQ6w9vm0D5MitJTYlBiGU0JyRHJC6QccfFJ79Fc/y9TD/4m+QldStq2eVR1N9KiRpLXp/mCi/eT/P8/8WWZ8k5YeFiUf24wFKP5VjMTK0WL3Wi4sgyY0e+ylLfQ7Bfpa6V1WkPSUhVCXWgcMjfS2vPoJZrnKwOxK6sBc1Aplj9gar+aEJTKHtvZI6NhLP/77/QXzhP9747sW5UUtQ02L+UfH6h2GtP4X78V8jZp8qDDnGJxktoXFTJ95ADmkt6V8zTARmT6orFIU65Rv4z5+0e5vlDXLbCU9cRHAsO+a8yk6+hZsC8pIYrExhCxZa9FypvuOFU2UWGKz0A8es9d80I147x7QTXzZBuiiA017wb/47fgCO/ijZHChHz89i5H8MbTyLnX0BTj5phcb4F3FKPacA0Qs7FWQ2enwboQMbAGGQHpEOkI9gtLOw2kr2DbDMEw3GeTp5jIg/R8ELdFH2p5Mc2X2sBkVVo3DIF6mbpoRFSNvjjpEF8A75FfCHBNSOkneDaad09QundNeMimRyLSlMfXEgBy0s09VjssVykbjrYfVpPyKitqwZoSy+QUSViAjJZLdcb49I7MBB6hOXGk2RzsAUlVRwypsAqGmz5gM0oYGBiJQc3Q8lIFso6bV32NkVUsRQQP0aarhTicQkMDy5YAZdDISOHAjpHTGOVeipOanC4q4ca9k9uI9G2gMkIs7aqs9RpK4aynSIOZWKV+ipLOjgnbtYvSo0EAIqRy31EhqBrOWG+RVyA0NSKsNbaqye7iv8wTdVBRMxSWbrWXN6vsdm24tr+lLxmOVIrIJZ1upu1fU12LFUpD6o+eP+0AX4gdJuE7TxAhuyvSEQByRW8ZMQ3WE6FgNUa/HriJYqUjsgAtPT89gFf2f3+uDzkuUNat1EFrdb7ht/czIYGRzcA3p8fX7kq2kiFjWF7uZkyPLZoQwYltSvhUll3qyvG2wTUjGsAORAxSNM2H14YAMC29HMNd7oBzoFdTng5NvP9vD7bQSZ1+bFvXWCThDoPKc/hIMUsxNZLznbZwlKtIXQjRbOhrrDV9Rr49n3rjo2uSV/19BLr7vH++4YxVIB6wPtwEAkHLIxskFCvhZr4S5XyZqV42bGh3lbXBw4EvjkZOeC1Oo8BmOwHv/m5g4Dul/pVacD+H2elDcNrMiQqG0nZ/u+3y4BeCfj+1zZse3W92c3RA+7d/x0HSftg8PCWGyRs44dt1QjYfjBZDvjufRN4S+BXuncr3dv3/wHR4m2vr3z8fxYphBDj5yUxAAAAAElFTkSuQmCC" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt="Aria" />';
+  const bub = document.createElement('div');
+  bub.className = 'bubble ai';
+  bub.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+  row.appendChild(av); row.appendChild(bub);
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTyping() { const t = document.getElementById('typing'); if (t) t.remove(); }
+
+function clearCapture() {
+  capture = null;
+  document.getElementById('scr-thumb').textContent = '🖥';
+  document.getElementById('scr-name').textContent  = 'No capture yet — press Capture or Alt+Q';
+}
+
+function chip(text) {
+  const el = document.getElementById('input');
+  el.value = text; resizeInput(el); el.focus();
+}
+
+function onKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
+
+function resizeInput(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 80) + 'px';
+}
+</script>
+</body>
+</html>

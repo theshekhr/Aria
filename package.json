@@ -1,0 +1,45 @@
+{
+  "name": "aria-ai-assistant",
+  "version": "1.0.0",
+  "description": "Aria — Floating AI Screen Assistant for Windows",
+  "main": "src/main.js",
+  "author": {
+    "name": "Shashank Shekhar",
+    "email": "shashankshekhar@example.com"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64",
+    "build:portable": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.aria.assistant",
+    "productName": "Aria",
+    "copyright": "Copyright © 2026 Shashank Shekhar",
+    "directories": { "output": "dist" },
+    "files": ["src/**/*", "package.json"],
+    "icon": "src/assets/icon.ico",
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "src/assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker",
+      "legalTrademarks": "Shashank Shekhar",
+      "artifactName": "Aria.Setup.${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Aria AI Assistant",
+      "installerIcon": "src/assets/icon.ico",
+      "uninstallerIcon": "src/assets/icon.ico"
+    }
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^26.8.1"
+  },
+  "dependencies": {}
+}
